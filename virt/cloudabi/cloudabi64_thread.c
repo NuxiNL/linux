@@ -40,6 +40,7 @@ cloudabi64_sys_thread_create(cloudabi64_threadattr_t __user *attr,
 {
 	cloudabi64_threadattr_t kattr;
 	struct clone4_args clone4_args = {};
+	struct clonefd_setup clonefd_setup = {};
 	struct pt_regs *regs;
 	struct task_struct *child;
 	cloudabi_tid_t newtid;
@@ -83,7 +84,7 @@ cloudabi64_sys_thread_create(cloudabi64_threadattr_t __user *attr,
 
 	/* Create a new thread. */
 	child = copy_process(CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND |
-	    CLONE_THREAD, &clone4_args, NULL, 0, NULL);
+	    CLONE_THREAD, &clone4_args, NULL, 0, &clonefd_setup);
 #ifdef __x86_64__
 	do_arch_prctl(current, ARCH_SET_FS, curtcbptr);
 #endif
