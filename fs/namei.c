@@ -2490,7 +2490,7 @@ int _user_path_at_fixed_length(int dfd, const char __user *name, size_t len,
  *     allocated by getname. So we must hold the reference to it until all
  *     path-walking is complete.
  */
-struct filename *
+static inline struct filename *
 user_path_parent(int dfd, const char __user *path,
 		 struct path *parent,
 		 struct qstr *last,
