@@ -49,7 +49,7 @@
  */
 #ifndef __ASSEMBLY__
 struct task_struct;
-#include <asm/processor.h>
+#include <asm/cpufeature.h>
 #include <linux/atomic.h>
 
 struct thread_info {
@@ -136,10 +136,13 @@ struct thread_info {
 #define _TIF_X32		(1 << TIF_X32)
 #define _TIF_CLOUDABI		(1 << TIF_CLOUDABI)
 
-/* work to do in syscall_trace_enter() */
+/*
+ * work to do in syscall_trace_enter().  Also includes TIF_NOHZ for
+ * enter_from_user_mode()
+ */
 #define _TIF_WORK_SYSCALL_ENTRY	\
 	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_EMU | _TIF_SYSCALL_AUDIT |	\
-	 _TIF_SECCOMP | _TIF_SINGLESTEP | _TIF_SYSCALL_TRACEPOINT |	\
+	 _TIF_SECCOMP | _TIF_SYSCALL_TRACEPOINT |	\
 	 _TIF_NOHZ | _TIF_CLOUDABI)
 
 /* work to do on any return to user space */
@@ -275,11 +278,9 @@ static inline bool is_ia32_task(void)
  */
 #define force_iret() set_thread_flag(TIF_NOTIFY_RESUME)
 
-#endif	/* !__ASSEMBLY__ */
-
-#ifndef __ASSEMBLY__
 extern void arch_task_cache_init(void);
 extern int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
 extern void arch_release_task_struct(struct task_struct *tsk);
-#endif
+#endif	/* !__ASSEMBLY__ */
+
 #endif /* _ASM_X86_THREAD_INFO_H */

@@ -37,6 +37,7 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
 #define LOOKUP_PARENT		0x0010
 #define LOOKUP_REVAL		0x0020
 #define LOOKUP_RCU		0x0040
+#define LOOKUP_NO_REVAL		0x0080
 
 /*
  * Intent data
@@ -125,10 +126,12 @@ extern int kern_path_mountpoint(int, const char *, struct path *, unsigned int);
 extern struct filename *user_path_parent(int, const char __user *, struct path *, struct qstr *, int *, unsigned int, const struct capsicum_rights *);
 extern struct filename *user_path_parent_fixed_length(int, const char __user *, size_t, struct path *, struct qstr *, int *, unsigned int, const struct capsicum_rights *);
 
-struct dentry *__lookup_hash(struct qstr *name, struct dentry *base, unsigned int flags);
+struct dentry *__lookup_hash(const struct qstr *name, struct dentry *base, unsigned int flags);
 
 extern struct dentry *lookup_one_len(const char *, struct dentry *, int);
 extern struct dentry *lookup_one_len_unlocked(const char *, struct dentry *, int);
+struct qstr;
+extern struct dentry *lookup_hash(const struct qstr *, struct dentry *);
 
 extern int follow_down_one(struct path *);
 extern int follow_down(struct path *);
