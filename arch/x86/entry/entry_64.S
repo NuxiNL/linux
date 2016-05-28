@@ -241,66 +241,9 @@ entry_SYSCALL_64_fastpath:
 	call	syscall_return_slowpath	/* returns with IRQs disabled */
 	jmp	return_from_SYSCALL_64
 
-#ifdef CONFIG_BINFMT_ELF_CLOUDABI
-syscall_cloudabi:
-	/* Ensure system call number is within bounds. */
-	/* TODO(ed): Derive this value from the actual table size. */
-	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_NONE)
-	cmpq $57, %rax
-	jb 1f
-	movq $57, %rax
-
-1:
-	/* Provide arguments as a structure. */
-	pushq %r9
-	pushq %r8
-	pushq %r10
-	pushq %rdx
-	pushq %rsi
-	pushq %rdi
-	movq %rsp, %rdi
-
-	/* Provide buffer for return values. */
-	pushq %rdx
-	pushq $0
-	movq %rsp, %rsi
-
-	/* Invoke system call handler. */
-	call *cloudabi64_syscalls(,%rax,8)
-	test %rax, %rax
-	jnz 1f
-
-	/* System call succeeded. Clear carry flag. */
-	mov 0(%rsp), %rax
-	mov 8(%rsp), %rdx
-	addq $(8*8), %rsp
-	movq %rax, RAX(%rsp)
-	movq %rdx, RDX(%rsp)
-	andl $(~X86_EFLAGS_CF), EFLAGS(%rsp)
-	jmp return_from_SYSCALL_64
-
-1:
-	/* System call failed. Set carry flag. */
-	addq $(8*8), %rsp
-	movq %rax, RAX(%rsp)
-	orl $X86_EFLAGS_CF, EFLAGS(%rsp)
-	jmp return_from_SYSCALL_64
-#endif
-
 entry_SYSCALL64_slow_path:
 	/* IRQs are off. */
 	SAVE_EXTRA_REGS
-
-#ifdef CONFIG_BINFMT_ELF_CLOUDABI
-	/*
-	 * Execute call from CloudABI system call table if this is a
-	 * CloudABI process, instead of a regular Linux process.
-	 */
-	bt $TIF_CLOUDABI,ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
-	jc syscall_cloudabi
-#endif
-
 	movq	%rsp, %rdi
 	call	do_syscall_64		/* returns with IRQs disabled */
 

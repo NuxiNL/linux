@@ -48,6 +48,7 @@
  * - this struct shares the supervisor stack pages
  */
 #ifndef __ASSEMBLY__
+struct pt_regs;
 struct task_struct;
 #include <asm/cpufeature.h>
 #include <linux/atomic.h>
@@ -60,6 +61,7 @@ struct thread_info {
 	mm_segment_t		addr_limit;
 	unsigned int		sig_on_uaccess_error:1;
 	unsigned int		uaccess_err:1;	/* uaccess failed */
+	void			(*syscall_handler)(struct pt_regs *);
 };
 
 #define INIT_THREAD_INFO(tsk)			\
@@ -110,7 +112,7 @@ struct thread_info {
 #define TIF_SYSCALL_TRACEPOINT	28	/* syscall tracepoint instrumentation */
 #define TIF_ADDR32		29	/* 32-bit address space on 64 bits */
 #define TIF_X32			30	/* 32-bit native x86-64 binary */
-#define TIF_CLOUDABI		31	/* CloudABI executable */
+#define TIF_SYSCALL_HANDLER	31	/* Custom system call handler */
 
 #define _TIF_SYSCALL_TRACE	(1 << TIF_SYSCALL_TRACE)
 #define _TIF_NOTIFY_RESUME	(1 << TIF_NOTIFY_RESUME)
@@ -134,7 +136,7 @@ struct thread_info {
 #define _TIF_SYSCALL_TRACEPOINT	(1 << TIF_SYSCALL_TRACEPOINT)
 #define _TIF_ADDR32		(1 << TIF_ADDR32)
 #define _TIF_X32		(1 << TIF_X32)
-#define _TIF_CLOUDABI		(1 << TIF_CLOUDABI)
+#define _TIF_SYSCALL_HANDLER	(1 << TIF_SYSCALL_HANDLER)
 
 /*
  * work to do in syscall_trace_enter().  Also includes TIF_NOHZ for
@@ -143,7 +145,7 @@ struct thread_info {
 #define _TIF_WORK_SYSCALL_ENTRY	\
 	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_EMU | _TIF_SYSCALL_AUDIT |	\
 	 _TIF_SECCOMP | _TIF_SYSCALL_TRACEPOINT |	\
-	 _TIF_NOHZ | _TIF_CLOUDABI)
+	 _TIF_NOHZ | _TIF_SYSCALL_HANDLER)
 
 /* work to do on any return to user space */
 #define _TIF_ALLWORK_MASK						\
@@ -267,6 +269,13 @@ static inline bool is_ia32_task(void)
 		return true;
 #endif
 	return false;
+}
+
+static inline void set_syscall_handler(void (*handler)(struct pt_regs *))
+{
+	struct thread_info *ti = current_thread_info();
+	ti->flags |= _TIF_SYSCALL_HANDLER;
+	ti->syscall_handler = handler;
 }
 
 /*

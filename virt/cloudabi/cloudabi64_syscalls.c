@@ -25,10 +25,14 @@
 //
 // Source: https://github.com/NuxiNL/cloudabi
 
+#include <linux/kernel.h>
+
 #include <asm/byteorder.h>
+#include <asm/ptrace.h>
 
 #include "cloudabi_syscalls.h"
 #include "cloudabi64_syscalls.h"
+#include "cloudabi64_util.h"
 
 #ifdef __LITTLE_ENDIAN
 #define MEMBER(type, name) _Alignas(8) type name
@@ -670,7 +674,7 @@ static cloudabi_errno_t do_enosys(const void *in, void *out)
 	return CLOUDABI_ENOSYS;
 }
 
-cloudabi_errno_t (*cloudabi64_syscalls[])(const void *, void *) = {
+static cloudabi_errno_t (*syscalls[])(const void *, void *) = {
 	do_clock_res_get,
 	do_clock_time_get,
 	do_condvar_signal,
@@ -732,3 +736,25 @@ cloudabi_errno_t (*cloudabi64_syscalls[])(const void *, void *) = {
 
 	do_enosys,
 };
+
+void cloudabi64_syscall_handler(struct pt_regs *regs)
+{
+	uint64_t in[] = {
+	    regs->di, regs->si, regs->dx, regs->r10, regs->r8, regs->r9,
+	};
+	uint64_t out[] = { 0, regs->dx };
+	size_t nr;
+	cloudabi_errno_t error;
+
+	nr = min((size_t)regs->orig_ax,
+	         sizeof(syscalls) / sizeof(syscalls[0]) - 1);
+	error = syscalls[nr](in, out);
+	if (error == 0) {
+		regs->flags &= ~1;
+		regs->ax = out[0];
+		regs->dx = out[1];
+	} else {
+		regs->flags |= 1;
+		regs->ax = error;
+	}
+}

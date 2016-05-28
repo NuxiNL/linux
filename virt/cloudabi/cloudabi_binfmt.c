@@ -24,6 +24,7 @@
 
 #include "cloudabi_util.h"
 #include "cloudabi64_types.h"
+#include "cloudabi64_util.h"
 
 #if ELF_EXEC_PAGESIZE > PAGE_SIZE
 #define ELF_MIN_ALIGN	ELF_EXEC_PAGESIZE
@@ -382,7 +383,7 @@ static int cloudabi_binfmt_load_binary(struct linux_binprm *bprm) {
 #error "Unknown architecture"
 #endif
 	start_thread(regs, entry, bprm->p);
-	set_tsk_thread_flag(current, TIF_CLOUDABI);
+	set_syscall_handler(cloudabi64_syscall_handler);
 	task_set_openat_beneath(current);
 
 #ifdef __x86_64__
