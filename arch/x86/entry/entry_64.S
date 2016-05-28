@@ -245,6 +245,8 @@ entry_SYSCALL_64_fastpath:
 syscall_cloudabi:
 	/* Ensure system call number is within bounds. */
 	/* TODO(ed): Derive this value from the actual table size. */
+	TRACE_IRQS_ON
+	ENABLE_INTERRUPTS(CLBR_NONE)
 	cmpq $57, %rax
 	jb 1f
 	movq $57, %rax
