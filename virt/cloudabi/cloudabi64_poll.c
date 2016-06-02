@@ -86,6 +86,37 @@ static bool do_pdwait(const cloudabi64_subscription_t *sub,
 	return error != -EAGAIN;
 }
 
+cloudabi_errno_t cloudabi64_poll_copyin(const void __user *base, size_t idx,
+                                        cloudabi_subscription_t *out)
+{
+	const cloudabi_subscription_t __user *in;
+
+	_Static_assert(sizeof(cloudabi_subscription_t) ==
+	    sizeof(cloudabi64_subscription_t),
+	    "This code assumes a 64-bit system");
+	in = base;
+	return copy_from_user(out, in + idx, sizeof(*out)) != 0 ?
+	    CLOUDABI_EFAULT : 0;
+}
+
+cloudabi_errno_t cloudabi64_poll_copyout(const cloudabi_event_t *in,
+                                         void __user *base, size_t idx)
+{
+	cloudabi_event_t __user *out;
+
+	_Static_assert(sizeof(cloudabi_event_t) ==
+	    sizeof(cloudabi64_event_t),
+	    "This code assumes a 64-bit system");
+	out = base;
+	return copy_from_user(out + idx, in, sizeof(*in)) != 0 ?
+	    CLOUDABI_EFAULT : 0;
+}
+
+static const struct cloudabi_poll_copyops copyops = {
+	.copyin		= cloudabi64_poll_copyin,
+	.copyout	= cloudabi64_poll_copyout,
+};
+
 cloudabi_errno_t
 cloudabi64_sys_poll(const cloudabi64_subscription_t __user *in,
     cloudabi64_event_t __user *out, size_t nsubscriptions, size_t *nevents)
@@ -110,6 +141,7 @@ cloudabi64_sys_poll(const cloudabi64_subscription_t __user *in,
 		ev.type = sub.type;
 		if (sub.type == CLOUDABI_EVENTTYPE_CLOCK) {
 			/* Sleep. */
+			/* TODO(ed): Remove this once polling works. */
 			mode = sub.clock.flags & CLOUDABI_SUBSCRIPTION_CLOCK_ABSTIME ?
 			    HRTIMER_MODE_ABS : HRTIMER_MODE_REL;
 			error = cloudabi_convert_clockid(sub.clock.clock_id,
@@ -158,6 +190,7 @@ cloudabi64_sys_poll(const cloudabi64_subscription_t __user *in,
 			    CLOUDABI_EFAULT : 0;
 		} else if (sub.type == CLOUDABI_EVENTTYPE_PROC_TERMINATE) {
 			/* Wait for process termination. */
+			/* TODO(ed): Remove this once polling works. */
 			do_pdwait(&sub, &ev, false);
 			*nevents = 1;
 			return copy_to_user(out, &ev, sizeof(ev)) != 0 ?
@@ -234,6 +267,7 @@ cloudabi64_sys_poll(const cloudabi64_subscription_t __user *in,
 		    sub[1].type == CLOUDABI_EVENTTYPE_CLOCK &&
 		    sub[1].clock.timeout == 0) {
 			/* Wait for process termination. */
+			/* TODO(ed): Remove this once polling works. */
 			if (!do_pdwait(&sub[0], &ev[0], true)) {
 				ev[1].error = 0;
 				*nevents = 1;
@@ -247,7 +281,7 @@ cloudabi64_sys_poll(const cloudabi64_subscription_t __user *in,
 		}
 	}
 
-	return CLOUDABI_ENOSYS;
+	return cloudabi_sys_poll(in, out, nsubscriptions, nevents, &copyops);
 }
 
 cloudabi_errno_t cloudabi64_sys_poll_fd(cloudabi_fd_t fd,
@@ -255,6 +289,6 @@ cloudabi_errno_t cloudabi64_sys_poll_fd(cloudabi_fd_t fd,
     cloudabi64_event_t __user *out, size_t nout,
     const cloudabi64_subscription_t __user *timeout, size_t *nevents)
 {
-	/* TODO(ed): Implement. */
-	return CLOUDABI_ENOSYS;
+	return cloudabi_sys_poll_fd(fd, in, nin, out, nout, timeout, nevents,
+	                            &copyops);
 }

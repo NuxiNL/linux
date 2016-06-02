@@ -71,3 +71,20 @@ bool cloudabi_is_poll(struct file *f)
 {
 	return f->f_op == &cloudabi_poll_fops;
 }
+
+cloudabi_errno_t cloudabi_sys_poll(const void __user *in, void __user *out,
+    size_t nsubscriptions, size_t *nevents,
+    const struct cloudabi_poll_copyops *copyops)
+{
+	/* TODO(ed): Implement! */
+	return CLOUDABI_ENOSYS;
+}
+
+cloudabi_errno_t cloudabi_sys_poll_fd(cloudabi_fd_t fd,
+    const void __user *in, size_t nin, void __user *out, size_t nout,
+    const void __user *timeout, size_t *nevents,
+    const struct cloudabi_poll_copyops *copyops)
+{
+	/* TODO(ed): Implement! */
+	return CLOUDABI_ENOSYS;
+}

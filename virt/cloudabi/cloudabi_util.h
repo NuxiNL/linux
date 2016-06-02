@@ -26,7 +26,7 @@
 #ifndef CLOUDABI_UTIL_H
 #define CLOUDABI_UTIL_H
 
-#include "cloudabi_types_common.h"
+#include "cloudabi_types.h"
 
 struct capsicum_rights;
 struct file;
@@ -77,5 +77,23 @@ int cloudabi_futex_lock_wrlock(struct task_struct *, cloudabi_lock_t *,
 
 cloudabi_errno_t cloudabi_poll_create(cloudabi_fd_t *fd);
 bool cloudabi_is_poll(struct file *);
+
+/*
+ * Polling.
+ */
+
+struct cloudabi_poll_copyops {
+	cloudabi_errno_t (*copyin)(const void __user *base, size_t idx,
+	                           cloudabi_subscription_t *out);
+	cloudabi_errno_t (*copyout)(const cloudabi_event_t *in,
+	                            void __user *base, size_t idx);
+};
+
+cloudabi_errno_t cloudabi_sys_poll(const void __user *in, void __user *out,
+    size_t nsubscriptions, size_t *nevents,
+    const struct cloudabi_poll_copyops *copyops);
+cloudabi_errno_t cloudabi_sys_poll_fd(cloudabi_fd_t fd, const void __user *in,
+    size_t nin, void __user *out, size_t nout, const void __user *timeout,
+    size_t *nevents, const struct cloudabi_poll_copyops *copyops);
 
 #endif
