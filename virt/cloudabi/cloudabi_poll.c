@@ -30,6 +30,10 @@
 
 #include "cloudabi_util.h"
 
+struct cloudabi_poll {
+	int dummy;
+};
+
 static const struct file_operations cloudabi_poll_fops = {
 };
 
@@ -72,6 +76,15 @@ bool cloudabi_is_poll(struct file *f)
 	return f->f_op == &cloudabi_poll_fops;
 }
 
+static cloudabi_errno_t cloudabi_poll(struct cloudabi_poll *cp,
+    const void __user *in, size_t nin, void __user *out, size_t nout,
+    const void __user *timeout, size_t *nevents,
+    const struct cloudabi_poll_copyops *copyops)
+{
+	/* TODO(ed): Implement! */
+	return CLOUDABI_ENOSYS;
+}
+
 cloudabi_errno_t cloudabi_sys_poll(const void __user *in, void __user *out,
     size_t nsubscriptions, size_t *nevents,
     const struct cloudabi_poll_copyops *copyops)
@@ -85,6 +98,28 @@ cloudabi_errno_t cloudabi_sys_poll_fd(cloudabi_fd_t fd,
     const void __user *timeout, size_t *nevents,
     const struct cloudabi_poll_copyops *copyops)
 {
-	/* TODO(ed): Implement! */
-	return CLOUDABI_ENOSYS;
+	struct capsicum_rights rights;
+	struct fd f;
+	cloudabi_errno_t error;
+
+	/* Determine rights that need to be present. */
+	cap_rights_init(&rights);
+	if (nin > 0)
+		cap_rights_set(&rights, CAP_KQUEUE_CHANGE);
+	if (nout > 0)
+		cap_rights_set(&rights, CAP_KQUEUE_EVENT);
+
+	/* Fetch file descriptor. */
+	f = fdget_rights(fd, &rights);
+	if (IS_ERR(f.file))
+		return cloudabi_convert_errno(PTR_ERR(f.file));
+
+	/* Perform polling call if valid. */
+	if (cloudabi_is_poll(f.file))
+		error = cloudabi_poll(f.file->private_data, in, nin, out, nout,
+				      timeout, nevents, copyops);
+	else
+		error = CLOUDABI_EBADF;
+	fdput(f);
+	return error;
 }
