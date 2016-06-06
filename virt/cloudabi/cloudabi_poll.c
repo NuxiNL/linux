@@ -27,6 +27,7 @@
 #include <linux/capsicum.h>
 #include <linux/file.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 
 #include "cloudabi_util.h"
 
@@ -34,12 +35,34 @@ struct cloudabi_poll {
 	int dummy;
 };
 
+static void cloudabi_poll_init(struct cloudabi_poll *cp)
+{
+	/* TODO(ed): Implement! */
+}
+
+static void cloudabi_poll_destroy(struct cloudabi_poll *cp)
+{
+	/* TODO(ed): Implement! */
+}
+
+static int cloudabi_poll_release(struct inode *inode, struct file *file)
+{
+	struct cloudabi_poll *cp;
+
+	cp = file->private_data;
+	cloudabi_poll_destroy(cp);
+	kfree(cp);
+	return 0;
+}
+
 static const struct file_operations cloudabi_poll_fops = {
+	.release	= cloudabi_poll_release,
 };
 
 cloudabi_errno_t cloudabi_poll_create(cloudabi_fd_t *fd)
 {
 	struct capsicum_rights rights;
+	struct cloudabi_poll *cp;
 	struct file *file, *installfile;
 	int error;
 
@@ -49,12 +72,19 @@ cloudabi_errno_t cloudabi_poll_create(cloudabi_fd_t *fd)
 		return cloudabi_convert_errno(error);
 	*fd = error;
 
+	/* Allocate a polling object. */
+	cp = kmalloc(sizeof(*cp), GFP_KERNEL);
+	if (cp == NULL) {
+		put_unused_fd(*fd);
+		return CLOUDABI_ENOMEM;
+	}
+
 	/* Create the anonymous inode to be placed underneath. */
-	/* TODO(ed): Allocate actual polling object. */
-	file = anon_inode_getfile("[cloudabi_poll]", &cloudabi_poll_fops, NULL,
+	file = anon_inode_getfile("[cloudabi_poll]", &cloudabi_poll_fops, cp,
 				  0);
 	if (IS_ERR(file)) {
 		put_unused_fd(*fd);
+		kfree(cp);
 		return cloudabi_convert_errno(PTR_ERR(file));
 	}
 
@@ -63,10 +93,12 @@ cloudabi_errno_t cloudabi_poll_create(cloudabi_fd_t *fd)
 	installfile = capsicum_file_install(&rights, file);
 	if (IS_ERR(installfile)) {
 		put_unused_fd(*fd);
+		kfree(cp);
 		fput(file);
 		return cloudabi_convert_errno(PTR_ERR(installfile));
 	}
 
+	cloudabi_poll_init(cp);
 	fd_install(*fd, installfile);
 	return 0;
 }
@@ -89,8 +121,14 @@ cloudabi_errno_t cloudabi_sys_poll(const void __user *in, void __user *out,
     size_t nsubscriptions, size_t *nevents,
     const struct cloudabi_poll_copyops *copyops)
 {
-	/* TODO(ed): Implement! */
-	return CLOUDABI_ENOSYS;
+	struct cloudabi_poll cp;
+	cloudabi_errno_t error;
+
+	cloudabi_poll_init(&cp);
+	error = cloudabi_poll(&cp, in, nsubscriptions, out, nsubscriptions,
+	                      NULL, nevents, copyops);
+	cloudabi_poll_destroy(&cp);
+	return error;
 }
 
 cloudabi_errno_t cloudabi_sys_poll_fd(cloudabi_fd_t fd,
