@@ -73,10 +73,7 @@ cloudabi64_sys_thread_create(cloudabi64_threadattr_t __user *attr,
 	 * the desired value. We restore it right after thread creation
 	 * has finished.
 	 */
-	if (current->thread.fsindex == FS_TLS_SEL)
-		curtcbptr = get_desc_base(&current->thread.tls_array[FS_TLS]);
-	else
-		rdmsrl(MSR_FS_BASE, curtcbptr);
+	rdmsrl(MSR_FS_BASE, curtcbptr);
 	do_arch_prctl(current, ARCH_SET_FS, newtcbptr);
 #else
 #error "Unknown architecture"
@@ -84,7 +81,7 @@ cloudabi64_sys_thread_create(cloudabi64_threadattr_t __user *attr,
 
 	/* Create a new thread. */
 	child = copy_process(CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND |
-	    CLONE_THREAD, &clone4_args, NULL, 0, &clonefd_setup);
+	    CLONE_THREAD, &clone4_args, NULL, 0, NUMA_NO_NODE, &clonefd_setup);
 #ifdef __x86_64__
 	do_arch_prctl(current, ARCH_SET_FS, curtcbptr);
 #endif

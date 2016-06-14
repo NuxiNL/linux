@@ -77,8 +77,7 @@ cloudabi_errno_t cloudabi64_sys_sock_recv(cloudabi_fd_t sock,
 		msg.msg_flags |= MSG_DONTWAIT;
 
 	/* Read message. Return length of read message. */
-	error = sock_recvmsg(sk, &msg, iov_iter_count(&msg.msg_iter),
-	                     msg.msg_flags);
+	error = sock_recvmsg(sk, &msg, msg.msg_flags);
 	if (error >= 0) {
 		ro.ro_datalen = error;
 		error = copy_to_user(out, &ro, sizeof(ro)) != 0 ? -EFAULT : 0;

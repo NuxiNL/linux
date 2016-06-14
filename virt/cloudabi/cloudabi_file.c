@@ -399,6 +399,7 @@ cloudabi_errno_t cloudabi_sys_file_readdir(cloudabi_fd_t fd, void __user *buf,
 	struct fd f;
 	struct inode *inode;
 	int error;
+	bool shared;
 
 	/* Obtain directory inode. */
 	f = fdgetr(fd, CAP_READ);
@@ -407,7 +408,11 @@ cloudabi_errno_t cloudabi_sys_file_readdir(cloudabi_fd_t fd, void __user *buf,
 		goto out;
 	}
 	inode = file_inode(f.file);
-	if (f.file->f_op->iterate == NULL) {
+	if (f.file->f_op->iterate_shared != NULL) {
+		shared = true;
+	} else if (f.file->f_op->iterate != NULL) {
+		shared = false;
+	} else {
 		error = -ENOTDIR;
 		goto put;
 	}
@@ -416,16 +421,24 @@ cloudabi_errno_t cloudabi_sys_file_readdir(cloudabi_fd_t fd, void __user *buf,
 	if (error != 0)
 		goto put;
 
-	error = mutex_lock_killable(&inode->i_mutex);
-	if (error != 0)
-		goto put;
+	if (shared) {
+		inode_lock_shared(inode);
+	} else {
+		error = down_write_killable(&inode->i_rwsem);
+		if (error != 0)
+			goto put;
+	}
+
 	if (IS_DEADDIR(inode)) {
 		error = -ENOENT;
 		goto unlock;
 	}
 
 	/* Iterate on directory entries to write them to userspace. */
-	error = f.file->f_op->iterate(f.file, &data.ctx);
+	if (shared)
+		error = f.file->f_op->iterate_shared(f.file, &data.ctx);
+	else
+		error = f.file->f_op->iterate(f.file, &data.ctx);
 	putdircookie(&data, data.ctx.pos);
 	if (error == 0)
 		error = data.error;
@@ -433,7 +446,10 @@ cloudabi_errno_t cloudabi_sys_file_readdir(cloudabi_fd_t fd, void __user *buf,
 	fsnotify_access(f.file);
 	file_accessed(f.file);
 unlock:
-	inode_unlock(inode);
+	if (shared)
+		inode_unlock_shared(inode);
+	else
+		inode_unlock(inode);
 put:
 	fdput(f);
 out:
@@ -853,7 +869,7 @@ retry:
 	if (error)
 		goto exit1;
 retry_deleg:
-	mutex_lock_nested(&kpath.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
+	inode_lock_nested(kpath.dentry->d_inode, I_MUTEX_PARENT);
 	dentry = __lookup_hash(&last, kpath.dentry, lookup_flags);
 	error = PTR_ERR(dentry);
 	if (!IS_ERR(dentry)) {
@@ -874,7 +890,7 @@ retry_deleg:
 exit2:
 		dput(dentry);
 	}
-	mutex_unlock(&kpath.dentry->d_inode->i_mutex);
+	inode_unlock(kpath.dentry->d_inode);
 	if (inode)
 		iput(inode);	/* truncate the inode here */
 	inode = NULL;
@@ -939,7 +955,7 @@ retry:
 	if (error)
 		goto exit1;
 
-	mutex_lock_nested(&kpath.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
+	inode_lock_nested(kpath.dentry->d_inode, I_MUTEX_PARENT);
 	dentry = __lookup_hash(&last, kpath.dentry, lookup_flags);
 	error = PTR_ERR(dentry);
 	if (IS_ERR(dentry))
@@ -955,7 +971,7 @@ retry:
 exit3:
 	dput(dentry);
 exit2:
-	mutex_unlock(&kpath.dentry->d_inode->i_mutex);
+	inode_unlock(kpath.dentry->d_inode);
 	mnt_drop_write(kpath.mnt);
 exit1:
 	path_put(&kpath);

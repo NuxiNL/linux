@@ -323,7 +323,8 @@ cloudabi_errno_t cloudabi_sys_proc_fork(cloudabi_fd_t *fd, cloudabi_tid_t *tid)
 	/* Create a new process. */
 	cap_rights_init(&rights, CAP_FSTAT, CAP_PDWAIT);
 	clonefd_setup.rights = &rights;
-	child = copy_process(CLONE_FD, &clone4_args, NULL, 0, &clonefd_setup);
+	child = copy_process(CLONE_FD, &clone4_args, NULL, 0, NUMA_NO_NODE,
+	    &clonefd_setup);
 	if (IS_ERR(child))
 		return cloudabi_convert_errno(PTR_ERR(child));
 	newtid = cloudabi_gettid(child);
