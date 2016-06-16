@@ -32,7 +32,7 @@
 #include "cloudabi_util.h"
 
 /* Converts a CloudABI clock ID to a Linux clock ID. */
-int cloudabi_convert_clockid(cloudabi_clockid_t in, clockid_t *out)
+cloudabi_errno_t cloudabi_convert_clockid(cloudabi_clockid_t in, clockid_t *out)
 {
 	/* TODO(ed): Add support for CLOCK_*_CPUTIME_ID. */
 	switch (in) {
@@ -43,7 +43,7 @@ int cloudabi_convert_clockid(cloudabi_clockid_t in, clockid_t *out)
 		*out = CLOCK_REALTIME;
 		return 0;
 	default:
-		return -EINVAL;
+		return CLOUDABI_EINVAL;
 	}
 }
 
@@ -98,7 +98,7 @@ cloudabi_errno_t cloudabi_sys_clock_res_get(cloudabi_clockid_t clock_id,
 	error = cloudabi_convert_clockid(clock_id, &kclock_id);
 	if (error == 0)
 		*resolution = hrtimer_resolution;
-	return cloudabi_convert_errno(error);
+	return error;
 }
 
 cloudabi_errno_t cloudabi_sys_clock_time_get(cloudabi_clockid_t clock_id,
