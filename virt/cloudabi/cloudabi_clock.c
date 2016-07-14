@@ -24,6 +24,7 @@
  */
 
 #include <linux/hrtimer.h>
+#include <linux/sched.h>
 #include <linux/time.h>
 #include <linux/timekeeping.h>
 
@@ -73,20 +74,26 @@ static int convert_timespec_to_timestamp(const struct timespec *in,
 int cloudabi_clock_time_get(cloudabi_clockid_t clock_id,
     cloudabi_timestamp_t *ret)
 {
+	struct task_cputime cputime;
 	struct timespec ts;
 
-	/* TODO(ed): Add support for CLOCK_*_CPUTIME_ID. */
 	switch (clock_id) {
 	case CLOUDABI_CLOCK_MONOTONIC:
 		ktime_get_ts(&ts);
-		break;
+		return convert_timespec_to_timestamp(&ts, ret);
+	case CLOUDABI_CLOCK_PROCESS_CPUTIME_ID:
+		thread_group_cputime(current, &cputime);
+		*ret = cputime.sum_exec_runtime;
+		return 0;
 	case CLOUDABI_CLOCK_REALTIME:
 		ktime_get_real_ts(&ts);
-		break;
+		return convert_timespec_to_timestamp(&ts, ret);
+	case CLOUDABI_CLOCK_THREAD_CPUTIME_ID:
+		*ret = task_sched_runtime(current);
+		return 0;
 	default:
 		return -EINVAL;
 	}
-	return convert_timespec_to_timestamp(&ts, ret);
 }
 
 cloudabi_errno_t cloudabi_sys_clock_res_get(cloudabi_clockid_t clock_id,
