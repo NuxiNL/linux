@@ -131,20 +131,35 @@ obj-$(CONFIG_EFIVAR_FS)		+= efivarfs/
 
 # TODO(ed): Where should this be placed?
 obj-$(CONFIG_BINFMT_ELF_CLOUDABI) += \
-	../virt/cloudabi/cloudabi_binfmt.o \
-	../virt/cloudabi/cloudabi_errno.o \
-	../virt/cloudabi/cloudabi_fd.o \
-	../virt/cloudabi/cloudabi_poll.o \
 	../virt/cloudabi/cloudabi64_fd.o \
-	../virt/cloudabi/cloudabi64_syscalls.o \
-	../virt/cloudabi/cloudabi_proc.o \
-	../virt/cloudabi/cloudabi_clock.o \
-	../virt/cloudabi/cloudabi_mem.o \
-	../virt/cloudabi/cloudabi_file.o \
-	../virt/cloudabi/cloudabi_sock.o \
-	../virt/cloudabi/cloudabi_thread.o \
-	../virt/cloudabi/cloudabi_futex.o \
 	../virt/cloudabi/cloudabi64_poll.o \
 	../virt/cloudabi/cloudabi64_sock.o \
+	../virt/cloudabi/cloudabi64_syscalls.o \
 	../virt/cloudabi/cloudabi64_thread.o \
-	../virt/cloudabi/cloudabi_random.o
+	../virt/cloudabi/cloudabi64_vdso_blob.o \
+	../virt/cloudabi/cloudabi_binfmt.o \
+	../virt/cloudabi/cloudabi_clock.o \
+	../virt/cloudabi/cloudabi_errno.o \
+	../virt/cloudabi/cloudabi_fd.o \
+	../virt/cloudabi/cloudabi_file.o \
+	../virt/cloudabi/cloudabi_futex.o \
+	../virt/cloudabi/cloudabi_mem.o \
+	../virt/cloudabi/cloudabi_poll.o \
+	../virt/cloudabi/cloudabi_proc.o \
+	../virt/cloudabi/cloudabi_random.o \
+	../virt/cloudabi/cloudabi_sock.o \
+	../virt/cloudabi/cloudabi_thread.o
+
+virt/cloudabi/cloudabi64_vdso.o: virt/cloudabi/cloudabi_vdso_x86_64.c
+	$(CC) -shared -nostdinc -nostdlib \
+	    -Wl,-Tvirt/cloudabi/cloudabi64_vdso.lds.s -Wl,--hash-style=sysv \
+	    -D__KERNEL__ $(LINUXINCLUDE) \
+	    -Ivirt/cloudabi \
+	    -O2 -fomit-frame-pointer virt/cloudabi/cloudabi_vdso_x86_64.c \
+	    -o virt/cloudabi/cloudabi64_vdso.o
+
+# TODO(ed): Somehow link in the blob that it's page aligned.
+fs/../virt/cloudabi/cloudabi64_vdso_blob.o: virt/cloudabi/cloudabi64_vdso.o
+	$(OBJCOPY) --input-target binary --output-target elf64-x86-64 \
+	    --binary-architecture i386 virt/cloudabi/cloudabi64_vdso.o \
+	    virt/cloudabi/cloudabi64_vdso_blob.o
