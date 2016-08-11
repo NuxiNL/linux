@@ -152,7 +152,7 @@ obj-$(CONFIG_BINFMT_ELF_CLOUDABI) += \
 
 virt/cloudabi/cloudabi64_vdso.o: virt/cloudabi/cloudabi_vdso_x86_64.c
 	$(CC) -shared -nostdinc -nostdlib \
-	    -Wl,-Tvirt/cloudabi/cloudabi64_vdso.lds.s -Wl,--hash-style=sysv \
+	    -Wl,-Tvirt/cloudabi/cloudabi64_vdso.lds -Wl,--hash-style=sysv \
 	    -D__KERNEL__ $(LINUXINCLUDE) \
 	    -Ivirt/cloudabi \
 	    -O2 -fomit-frame-pointer virt/cloudabi/cloudabi_vdso_x86_64.c \
