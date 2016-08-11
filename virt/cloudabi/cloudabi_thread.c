@@ -25,10 +25,6 @@
 
 #include <linux/syscalls.h>
 
-#include <asm/current.h>
-#include <asm/prctl.h>
-#include <asm/proto.h>
-
 #include "cloudabi_syscalls.h"
 #include "cloudabi_types_common.h"
 #include "cloudabi_util.h"
@@ -41,12 +37,6 @@ void cloudabi_sys_thread_exit(cloudabi_lock_t __user *lock,
 
         /* Terminate the thread. */
 	sys_exit(0);
-}
-
-cloudabi_errno_t cloudabi_sys_thread_tcb_set(void __user *tcb)
-{
-	return cloudabi_convert_errno(
-	    do_arch_prctl(current, ARCH_SET_FS, (unsigned long)tcb));
 }
 
 cloudabi_errno_t cloudabi_sys_thread_yield(void)

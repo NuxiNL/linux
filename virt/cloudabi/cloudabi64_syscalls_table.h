@@ -652,14 +652,6 @@ static cloudabi_errno_t do_thread_exit(const void *in, void *out)
 	return 0;
 }
 
-static cloudabi_errno_t do_thread_tcb_set(const void *in, void *out)
-{
-	const struct {
-		MEMBER(void __user *, tcb);
-	} *vin = in;
-	return cloudabi_sys_thread_tcb_set(vin->tcb);
-}
-
 static cloudabi_errno_t do_thread_yield(const void *in, void *out)
 {
 	return cloudabi_sys_thread_yield();
@@ -706,6 +698,7 @@ static cloudabi_errno_t (*syscalls[])(const void *, void *) = {
 	do_mem_unlock,
 	do_mem_unmap,
 	do_poll,
+	do_poll_fd,
 	do_proc_exec,
 	do_proc_exit,
 	do_proc_fork,
@@ -721,7 +714,5 @@ static cloudabi_errno_t (*syscalls[])(const void *, void *) = {
 	do_sock_stat_get,
 	do_thread_create,
 	do_thread_exit,
-	do_thread_tcb_set,
 	do_thread_yield,
-	do_poll_fd,
 };
