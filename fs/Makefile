@@ -39,7 +39,6 @@ obj-$(CONFIG_BINFMT_MISC)	+= binfmt_misc.o
 obj-$(CONFIG_BINFMT_SCRIPT)	+= binfmt_script.o
 obj-$(CONFIG_BINFMT_ELF)	+= binfmt_elf.o
 obj-$(CONFIG_COMPAT_BINFMT_ELF)	+= compat_binfmt_elf.o
-obj-$(CONFIG_BINFMT_ELF_CLOUDABI) += ../virt/cloudabi/cloudabi_binfmt.o ../virt/cloudabi/cloudabi_errno.o ../virt/cloudabi/cloudabi_fd.o ../virt/cloudabi/cloudabi_poll.o ../virt/cloudabi/cloudabi64_fd.o ../virt/cloudabi/cloudabi64_syscalls.o ../virt/cloudabi/cloudabi_proc.o ../virt/cloudabi/cloudabi_clock.o ../virt/cloudabi/cloudabi_mem.o ../virt/cloudabi/cloudabi_file.o ../virt/cloudabi/cloudabi_sock.o ../virt/cloudabi/cloudabi_thread.o ../virt/cloudabi/cloudabi_futex.o ../virt/cloudabi/cloudabi64_poll.o ../virt/cloudabi/cloudabi64_sock.o ../virt/cloudabi/cloudabi64_thread.o ../virt/cloudabi/cloudabi_random.o
 obj-$(CONFIG_BINFMT_ELF_FDPIC)	+= binfmt_elf_fdpic.o
 obj-$(CONFIG_BINFMT_FLAT)	+= binfmt_flat.o
 
@@ -129,3 +128,23 @@ obj-y				+= exofs/ # Multiple modules
 obj-$(CONFIG_CEPH_FS)		+= ceph/
 obj-$(CONFIG_PSTORE)		+= pstore/
 obj-$(CONFIG_EFIVAR_FS)		+= efivarfs/
+
+# TODO(ed): Where should this be placed?
+obj-$(CONFIG_BINFMT_ELF_CLOUDABI) += \
+	../virt/cloudabi/cloudabi_binfmt.o \
+	../virt/cloudabi/cloudabi_errno.o \
+	../virt/cloudabi/cloudabi_fd.o \
+	../virt/cloudabi/cloudabi_poll.o \
+	../virt/cloudabi/cloudabi64_fd.o \
+	../virt/cloudabi/cloudabi64_syscalls.o \
+	../virt/cloudabi/cloudabi_proc.o \
+	../virt/cloudabi/cloudabi_clock.o \
+	../virt/cloudabi/cloudabi_mem.o \
+	../virt/cloudabi/cloudabi_file.o \
+	../virt/cloudabi/cloudabi_sock.o \
+	../virt/cloudabi/cloudabi_thread.o \
+	../virt/cloudabi/cloudabi_futex.o \
+	../virt/cloudabi/cloudabi64_poll.o \
+	../virt/cloudabi/cloudabi64_sock.o \
+	../virt/cloudabi/cloudabi64_thread.o \
+	../virt/cloudabi/cloudabi_random.o
