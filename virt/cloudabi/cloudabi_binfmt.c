@@ -116,7 +116,8 @@ static unsigned long cloudabi_binfmt_phdr_map(struct file *file,
 
 static int cloudabi_binfmt_init_stack(struct linux_binprm *bprm,
     struct elfhdr *hdr, unsigned long load_bias, unsigned long load_addr,
-    unsigned long *auxv_addr, unsigned long *tcb_addr) {
+    unsigned long vdso_addr, unsigned long *auxv_addr, unsigned long *tcb_addr)
+{
 	struct mm_struct *mm = current->mm;
 	unsigned long argdatalen = mm->arg_end - mm->arg_start;
 	unsigned long p;
@@ -137,6 +138,7 @@ static int cloudabi_binfmt_init_stack(struct linux_binprm *bprm,
 		PTR(CLOUDABI_AT_PHDR, load_addr + hdr->e_phoff),
 		VAL(CLOUDABI_AT_PHNUM, hdr->e_phnum),
 		VAL(CLOUDABI_AT_TID, cloudabi_gettid(current)),
+		VAL(CLOUDABI_AT_SYSINFO_EHDR, vdso_addr),
 #undef VAL
 #undef PTR
 		{ .a_type = CLOUDABI_AT_NULL },
@@ -173,6 +175,61 @@ static int cloudabi_binfmt_init_stack(struct linux_binprm *bprm,
 	return 0;
 }
 
+/*
+ * Page-aligned buffer containing a copy of the vDSO.
+ * TODO(ed): Don't use a separate buffer, but ensure that the linked in
+ * copy of the vDSO is already page aligned.
+ */
+static _Alignas(PAGE_SIZE) char vdso_base[65536];
+static size_t vdso_pages;
+
+/* Fault handler for accessing the vDSO. */
+static int cloudabi_vdso_fault(const struct vm_special_mapping *sm,
+                               struct vm_area_struct *vma, struct vm_fault *vmf)
+{
+	if (vmf->pgoff >= vdso_pages)
+		return VM_FAULT_SIGBUS;
+	vmf->page = virt_to_page(vdso_base + (vmf->pgoff << PAGE_SHIFT));
+	get_page(vmf->page);
+	return 0;
+}
+
+/*
+ * Maps the vDSO into the address space of the executable.
+ */
+static unsigned long cloudabi_map_vdso(struct mm_struct *mm)
+{
+	static const struct vm_special_mapping mapping = {
+		.name = "[vdso]",
+		.fault = cloudabi_vdso_fault,
+	};
+	struct vm_area_struct *vma;
+	unsigned long addr;
+
+	if (down_write_killable(&mm->mmap_sem))
+		return -EINTR;
+
+	/* Obtain free memory region. */
+	addr = get_unmapped_area(NULL, 0, vdso_pages * PAGE_SIZE, 0, 0);
+	if (IS_ERR_VALUE(addr)) {
+		up_write(&mm->mmap_sem);
+		return addr;
+	}
+
+	/* Map the vDSO. */
+	vma = _install_special_mapping(
+	    mm, addr, vdso_pages * PAGE_SIZE,
+	    VM_READ | VM_EXEC | VM_MAYREAD | VM_MAYWRITE,
+	    &mapping);
+	if (IS_ERR(vma)) {
+		up_write(&mm->mmap_sem);
+		return PTR_ERR(vma);
+	}
+
+	up_write(&mm->mmap_sem);
+	return addr;
+}
+
 static int cloudabi_binfmt_load_binary(struct linux_binprm *bprm) {
 	struct elfhdr *hdr;
 	struct elf_phdr *phdr, *phdrs;
@@ -181,7 +238,8 @@ static int cloudabi_binfmt_load_binary(struct linux_binprm *bprm) {
 	struct pt_regs *regs;
 	size_t phdrslen;
 	unsigned long bss, brk, addr, entry, start_code, end_code, start_data,
-	    end_data, len, load_addr, load_bias, p, auxv_addr, tcb_addr;
+	    end_data, len, load_addr, load_bias, p, auxv_addr, tcb_addr,
+	    vdso_addr;
 	int argc, error, i;
 	bool load_addr_set;
 
@@ -338,19 +396,28 @@ static int cloudabi_binfmt_load_binary(struct linux_binprm *bprm) {
 
 	set_binfmt(&cloudabi_binfmt_format);
 
+	/* Map the vDSO into the address space of the process. */
+	vdso_addr = cloudabi_map_vdso(mm);
+	if (IS_ERR_VALUE(vdso_addr)) {
+		error = vdso_addr;
+		goto out;
+	}
+
 	/* Determine where argument and environment data starts/ends. */
 	p = mm->arg_end = mm->arg_start;
 	for (argc = bprm->argc; argc > 0; argc--) {
 		size_t len = strnlen_user((void __user *)p, MAX_ARG_STRLEN);
-		if (!len || len > MAX_ARG_STRLEN)
-			return -EINVAL;
+		if (!len || len > MAX_ARG_STRLEN) {
+			error = -EINVAL;
+			goto out;
+		}
 		p += len;
 	}
 	mm->arg_end = mm->env_start = mm->env_end = p;
 
 	install_exec_creds(bprm);
 	error = cloudabi_binfmt_init_stack(bprm, hdr, load_bias, load_addr,
-	    &auxv_addr, &tcb_addr);
+	    vdso_addr, &auxv_addr, &tcb_addr);
 	if (error != 0)
 		goto out;
 
@@ -397,8 +464,16 @@ out:
 	return error;
 }
 
+extern char _binary_virt_cloudabi_cloudabi64_vdso_o_start[];
+extern char _binary_virt_cloudabi_cloudabi64_vdso_o_end[];
+
 static int __init cloudabi_binfmt_init(void)
 {
+	/* TODO(ed): Get rid of this. */
+	memcpy(vdso_base, _binary_virt_cloudabi_cloudabi64_vdso_o_start,
+	    _binary_virt_cloudabi_cloudabi64_vdso_o_end -
+	    _binary_virt_cloudabi_cloudabi64_vdso_o_start);
+
 	register_binfmt(&cloudabi_binfmt_format);
 	return 0;
 }
