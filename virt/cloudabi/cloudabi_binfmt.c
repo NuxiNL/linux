@@ -469,10 +469,14 @@ extern char _binary_virt_cloudabi_cloudabi64_vdso_o_end[];
 
 static int __init cloudabi_binfmt_init(void)
 {
+	size_t vdso_length;
+
 	/* TODO(ed): Get rid of this. */
+	vdso_length = _binary_virt_cloudabi_cloudabi64_vdso_o_end -
+	    _binary_virt_cloudabi_cloudabi64_vdso_o_start;
 	memcpy(vdso_base, _binary_virt_cloudabi_cloudabi64_vdso_o_start,
-	    _binary_virt_cloudabi_cloudabi64_vdso_o_end -
-	    _binary_virt_cloudabi_cloudabi64_vdso_o_start);
+	    vdso_length);
+	vdso_pages = DIV_ROUND_UP(vdso_length, PAGE_SIZE);
 
 	register_binfmt(&cloudabi_binfmt_format);
 	return 0;
