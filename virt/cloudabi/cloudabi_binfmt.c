@@ -254,7 +254,7 @@ static int cloudabi_binfmt_load_binary(struct linux_binprm *bprm) {
 	    hdr->e_ident[EI_MAG2] != ELFMAG2 ||
 	    hdr->e_ident[EI_MAG3] != ELFMAG3 ||
 	    hdr->e_ident[EI_OSABI] != ELFOSABI_CLOUDABI ||
-	    (hdr->e_type != ET_EXEC && hdr->e_type != ET_DYN) ||
+	    hdr->e_type != ET_DYN ||
 	    hdr->e_phentsize != sizeof(struct elf_phdr) ||
 	    hdr->e_phnum < 1 ||
 	    hdr->e_phnum > ELF_MIN_ALIGN / sizeof(struct elf_phdr))
@@ -309,16 +309,11 @@ static int cloudabi_binfmt_load_binary(struct linux_binprm *bprm) {
 	mm = current->mm;
 	mm->start_stack = bprm->p;
 
-	if (hdr->e_type == ET_DYN) {
-		/* Position independent executable. */
-		load_bias = ELF_ET_DYN_BASE;
-		if (current->flags & PF_RANDOMIZE)
-			load_bias += arch_mmap_rnd();
-		load_bias = ELF_PAGEALIGN(load_bias);
-	} else {
-		/* Executable is not position independent. */
-		load_bias = 0;
-	}
+	/* Determine the load address of the Position Independent Executable. */
+	load_bias = ELF_ET_DYN_BASE;
+	if (current->flags & PF_RANDOMIZE)
+		load_bias += arch_mmap_rnd();
+	load_bias = ELF_PAGEALIGN(load_bias);
 
 	bss = 0;
 	brk = 0;
